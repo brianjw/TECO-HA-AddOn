@@ -11,8 +11,18 @@ This module uses it to:
   2. Create/refresh **sensor entities** (amount due, last bill cost/usage/$ per kWh,
      service period, account status, program flags) via the REST states API.
 
-No MQTT and no custom integration required. When SUPERVISOR_TOKEN is absent
-(plain Docker / standalone), `available()` is False and publishing is skipped.
+No MQTT and no custom integration required.
+
+Two ways to authenticate against HA Core, tried in this order:
+  1. `SUPERVISOR_TOKEN` — set automatically when running as an HA add-on
+     (`homeassistant_api: true`). Talks to HA via the Supervisor proxy.
+  2. `HA_URL` + `HA_TOKEN` — for standalone / unsupervised installs (plain
+     Docker, docker-compose HA Core, etc). `HA_TOKEN` is a Long-Lived Access
+     Token generated from your HA user profile. `HA_URL` is your HA base URL,
+     e.g. `http://homeassistant.local:8123` or `http://192.168.1.10:8123`.
+
+When neither is set, `available()` is False and publishing is a no-op —
+the dashboard/API-only standalone mode is unaffected.
 """
 from __future__ import annotations
 
@@ -23,8 +33,21 @@ from zoneinfo import ZoneInfo
 import aiohttp
 
 SUPERVISOR_TOKEN = os.environ.get("SUPERVISOR_TOKEN")
-CORE_REST = "http://supervisor/core/api"
-CORE_WS = "ws://supervisor/core/websocket"
+HA_URL = os.environ.get("HA_URL", "").rstrip("/")
+HA_TOKEN = os.environ.get("HA_TOKEN")
+
+if SUPERVISOR_TOKEN:
+    _AUTH_TOKEN = SUPERVISOR_TOKEN
+    CORE_REST = "http://supervisor/core/api"
+    CORE_WS = "ws://supervisor/core/websocket"
+elif HA_URL and HA_TOKEN:
+    _AUTH_TOKEN = HA_TOKEN
+    CORE_REST = f"{HA_URL}/api"
+    CORE_WS = f"{HA_URL.replace('https://', 'wss://').replace('http://', 'ws://')}/api/websocket"
+else:
+    _AUTH_TOKEN = None
+    CORE_REST = "http://supervisor/core/api"
+    CORE_WS = "ws://supervisor/core/websocket"
 
 STAT_ENERGY = "teco:energy_consumption"
 STAT_COST = "teco:energy_cost"
@@ -35,11 +58,11 @@ GRID_COST_FROM_TECO = os.environ.get("GRID_COST_FROM_TECO", "0") != "0"
 
 
 def available() -> bool:
-    return bool(SUPERVISOR_TOKEN)
+    return bool(_AUTH_TOKEN)
 
 
 def _headers() -> dict:
-    return {"Authorization": f"Bearer {SUPERVISOR_TOKEN}",
+    return {"Authorization": f"Bearer {_AUTH_TOKEN}",
             "Content-Type": "application/json"}
 
 
@@ -108,7 +131,7 @@ async def _import_statistics(session, data, tz, log):
                       "unit_of_measurement": "USD"}, cost))
     async with session.ws_connect(CORE_WS, heartbeat=30) as ws:
         await ws.receive_json()                                   # auth_required
-        await ws.send_json({"type": "auth", "access_token": SUPERVISOR_TOKEN})
+        await ws.send_json({"type": "auth", "access_token": _AUTH_TOKEN})
         auth = await ws.receive_json()
         if auth.get("type") != "auth_ok":
             log.error("HA websocket auth failed: %s", auth)
@@ -254,7 +277,7 @@ async def configure_energy(log) -> bool:
         async with aiohttp.ClientSession() as s:
             async with s.ws_connect(CORE_WS, heartbeat=30) as ws:
                 await ws.receive_json()  # auth_required
-                await ws.send_json({"type": "auth", "access_token": SUPERVISOR_TOKEN})
+                await ws.send_json({"type": "auth", "access_token": _AUTH_TOKEN})
                 if (await ws.receive_json()).get("type") != "auth_ok":
                     return False
                 await ws.send_json({"id": 1, "type": "energy/get_prefs"})

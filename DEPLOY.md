@@ -63,14 +63,33 @@ entities`. The first backfill takes a few minutes; later polls are incremental.
 
 ---
 
-## C. Standalone Docker (non-HA host)
-Runs the dashboard + JSON API only (no HA push, since there's no Supervisor):
+## C. Standalone Docker (non-HA host, or HA Core via docker-compose)
+Runs the dashboard + JSON API. By default there's no Supervisor to push into HA
+(dashboard/API-only mode), but if your HA is a docker-compose / Core install
+(no Supervisor — e.g. not HAOS/Supervised), you can still get the same
+sensors + Energy Dashboard statistics as the add-on:
+
 ```bash
 cd sidecar
-cp .env.example .env          # TECO_USER / TECO_PASS (+ SIDECAR_TOKEN to lock the API)
-docker compose up -d --build
+cp .env.example .env
+docker compose up -d          # or --build if you're building from source instead of the published image
 docker compose logs -f        # watch for "login OK"
 ```
+
+In `.env`, set `TECO_USER` / `TECO_PASS` (+ optional `SIDECAR_TOKEN` to lock the API), and
+optionally the two variables below to also push into HA:
+
+- `HA_URL` — your HA base URL, e.g. `http://homeassistant.local:8123` or `http://192.168.1.10:8123`
+  (if the sidecar and HA are on the same Docker network/compose project, this can be the HA
+  container's service name, e.g. `http://homeassistant:8123`)
+- `HA_TOKEN` — a Long-Lived Access Token from your HA user profile
+  (Profile → Security → Long-Lived Access Tokens → Create Token)
+
+With both set, sensors and Energy Dashboard statistics are pushed exactly as they would be
+from the add-on. Without them, you get the dashboard + JSON API only, and can pull data into
+HA yourself via a [RESTful sensor](https://www.home-assistant.io/integrations/rest/) pointed
+at `http://<host>:8089/data`.
+
 UI at `http://<host>:8089/`; archive persists on the `teco_archive` volume — back it up.
 
 ---
