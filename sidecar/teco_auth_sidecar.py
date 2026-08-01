@@ -51,7 +51,9 @@ import ha_publish  # noqa: E402
 from playwright.async_api import async_playwright, Browser, BrowserContext, Page  # noqa: E402
 
 LOG = logging.getLogger("teco.sidecar")
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+_LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(level=getattr(logging, _LOG_LEVEL, logging.INFO),
+                     format="%(asctime)s %(levelname)s %(message)s")
 
 BASE = "https://account.tecoenergy.com"
 LOGIN_URL = BASE + "/"
@@ -233,10 +235,15 @@ class TecoSession:
     async def _fetch_recent_daily(self, dln: str | None, since: date) -> list:
         """Fetch daily usage from `since`..today via the captured ibill session token.
         Returns [] when there's no token yet or TECO has no data past the last read."""
-        if not (self._ibill_auth and self._daily_url and dln):
+        missing = [name for name, val in
+                   (("_ibill_auth", self._ibill_auth), ("_daily_url", self._daily_url),
+                    ("dln", dln)) if not val]
+        if missing:
+            LOG.debug("recent daily: skipped, missing prerequisite(s): %s", ", ".join(missing))
             return []
         today = datetime.now().date()
         if since > today:
+            LOG.debug("recent daily: skipped, since (%s) is after today (%s)", since, today)
             return []
         body = {"dln": dln, "sdt": since.strftime("%Y%m%d"), "edt": today.strftime("%Y%m%d"),
                 "intp": "D", "dkwh": "x", "rkwh": "", "pf": "", "kw": "", "dtoun": "", "dtouf": ""}
@@ -249,8 +256,13 @@ class TecoSession:
                     try { return await r.json(); } catch(e){ return null; }
                 }""", {"url": self._daily_url, "body": body, "auth": self._ibill_auth})
         except Exception:  # noqa: BLE001
+            LOG.debug("recent daily: request to %s failed", self._daily_url, exc_info=True)
             return []
-        return models.to_jsonable(ibill.parse_daily_usage(raw or {}))
+        rows = models.to_jsonable(ibill.parse_daily_usage(raw or {}))
+        if not rows:
+            LOG.debug("recent daily: TECO returned 0 rows for %s..%s; raw response: %s",
+                      since, today, str(raw)[:500])
+        return rows
 
     async def _bill_detail(self, caid: str, invoice_id: str) -> dict:
         """Navigate one bill's ViewBill, parse service period + cost + daily usage."""
