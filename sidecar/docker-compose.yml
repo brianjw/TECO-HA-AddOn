@@ -1,6 +1,6 @@
 services:
   teco-sidecar:
-    image: ghcr.io/brianjw/teco-ha-sidecar:latest
+    image: ghcr.io/jjarboe01/teco-ha-sidecar:latest
     container_name: teco-sidecar
     environment:
       TECO_USER: ${TECO_USER:?set in .env}
