@@ -53,7 +53,7 @@ from playwright.async_api import async_playwright, Browser, BrowserContext, Page
 LOG = logging.getLogger("teco.sidecar")
 _LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(level=getattr(logging, _LOG_LEVEL, logging.INFO),
-                     format="%(asctime)s %(levelname)s %(message)s")
+                     format="%(asctime)s %(levelname)s %(message)s", force=True)
 
 BASE = "https://account.tecoenergy.com"
 LOGIN_URL = BASE + "/"
