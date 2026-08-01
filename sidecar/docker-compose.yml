@@ -10,6 +10,7 @@ services:
       BACKFILL_BILLS: ${BACKFILL_BILLS:-36}
       HA_URL: ${HA_URL:-}
       HA_TOKEN: ${HA_TOKEN:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
       CACHE_DIR: /data
       HEADLESS: "1"
     ports:
