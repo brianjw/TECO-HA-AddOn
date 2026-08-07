@@ -31,6 +31,7 @@
   th:first-child, td:first-child { text-align:left; }
   th { color:var(--muted); font-weight:600; cursor:pointer; user-select:none; }
   tr:hover td { background:rgba(255,255,255,.02); }
+  .chartwrap { overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; }
   .bars { display:flex; align-items:flex-end; gap:3px; height:130px; position:relative; padding-left:52px; box-sizing:border-box; }
   .bar { flex:1; background:var(--accent); border-radius:3px 3px 0 0; min-width:2px; position:relative; }
   .bar.cost { background:var(--accent2); }
@@ -66,11 +67,11 @@
   <div id="content" style="display:none">
     <div class="cards" id="cards"></div>
     <div class="row">
-      <section><h2>Usage per bill (kWh)</h2><div class="bars" id="kwhBars"></div><div class="axis" id="kwhAxis"></div></section>
-      <section><h2>Cost per bill ($)</h2><div class="bars" id="costBars"></div><div class="axis" id="costAxis"></div></section>
+      <section><h2>Usage per bill (kWh)</h2><div class="chartwrap"><div class="bars" id="kwhBars"></div><div class="axis" id="kwhAxis"></div></div></section>
+      <section><h2>Cost per bill ($)</h2><div class="chartwrap"><div class="bars" id="costBars"></div><div class="axis" id="costAxis"></div></div></section>
     </div>
-    <section><h2>$/kWh trend (per bill)</h2><div class="bars" id="rateBars"></div><div class="axis" id="rateAxis"></div></section>
-    <section><h2>Daily usage (kWh) — most recent 90 days</h2><div class="bars" id="dailyBars"></div><div class="axis" id="dailyAxis"></div></section>
+    <section><h2>$/kWh trend (per bill)</h2><div class="chartwrap"><div class="bars" id="rateBars"></div><div class="axis" id="rateAxis"></div></div></section>
+    <section><h2>Daily usage (kWh) — most recent 90 days</h2><div class="chartwrap"><div class="bars" id="dailyBars"></div><div class="axis" id="dailyAxis"></div></div></section>
     <section>
       <h2>All bills <span class="muted" id="billCount"></span></h2>
       <div style="overflow:auto">
